@@ -34,12 +34,14 @@ jobs:
             barajdurum: 'https://openapi.izmir.bel.tr/api/izsu/barajdurum',
             barajvekuyular: 'https://openapi.izmir.bel.tr/api/izsu/barajvekuyular',
             gunluksuuretimi: 'https://openapi.izmir.bel.tr/api/izsu/gunluksuuretimi',
-            suuretiminindagilimi: `https://openapi.izmir.bel.tr/api/izsu/suuretiminindagilimi/${currentYear}`,
             arizakaynaklisukesintileri: 'https://openapi.izmir.bel.tr/api/izsu/arizakaynaklisukesintileri',
             haftaliksuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/haftaliksuanalizleri',
             cevreilcesuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/cevreilcesuanalizleri',
             barajsukaliteraporlari: 'https://openapi.izmir.bel.tr/api/izsu/barajsukaliteraporlari'
           };
+
+          // Production distribution needs year parameter (2009-current)
+          const PRODUCTION_START_YEAR = 2009;
 
           // CKAN endpoints (valid SSL)
           const CKAN_ENDPOINTS = {
@@ -244,6 +246,18 @@ jobs:
               await new Promise(r => setTimeout(r, 500));
             }
 
+            // Fetch production distribution for all years (2010-current)
+            console.log('\nFetching production distribution by year...');
+            const productionData = [];
+            for (let year = PRODUCTION_START_YEAR; year <= currentYear; year++) {
+              const url = `https://openapi.izmir.bel.tr/api/izsu/suuretiminindagilimi/${year}`;
+              const result = await fetchEndpoint(`production_${year}`, url);
+              if (!result.error && Array.isArray(result.data)) {
+                productionData.push(...result.data);
+              }
+              await new Promise(r => setTimeout(r, 300));
+            }
+
             // Fetch CKAN endpoints
             console.log('\nFetching CKAN data...');
             for (const [name, url] of Object.entries(CKAN_ENDPOINTS)) {
@@ -274,6 +288,13 @@ jobs:
                 successCount++;
               }
             });
+
+            // Add merged production data
+            data.endpoints.suuretiminindagilimi = productionData;
+            if (productionData.length > 0) {
+              successCount++;
+              console.log(`suuretiminindagilimi: ${productionData.length} records (${PRODUCTION_START_YEAR}-${currentYear})`);
+            }
 
             console.log(`\nResults: ${successCount} success, ${errorCount} errors`);
 
