@@ -7,15 +7,30 @@
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 const API_BASE = 'https://openapi.izmir.bel.tr/api/izsu';
 const HISTORY_FILE = path.join(__dirname, '..', 'data', 'history.json');
 
+// Skip SSL verification (IZSU cert is expired)
+const agent = new https.Agent({ rejectUnauthorized: false });
+
 async function fetchWithRetry(url, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            const data = await new Promise((resolve, reject) => {
+                https.get(url, { agent }, (res) => {
+                    let body = '';
+                    res.on('data', chunk => body += chunk);
+                    res.on('end', () => {
+                        try {
+                            resolve(JSON.parse(body));
+                        } catch (e) {
+                            reject(new Error('JSON parse error'));
+                        }
+                    });
+                }).on('error', reject);
+            });
 
             if (data && data.message === 'An unexpected error occurred') {
                 throw new Error('Server returned error in response body');
