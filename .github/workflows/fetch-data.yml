@@ -1,0 +1,153 @@
+name: Fetch IZSU Data
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+  # Hourly schedule (uncomment when ready)
+  # schedule:
+  #   - cron: '0 * * * *'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch IZSU Data
+        env:
+          GIST_ID: ${{ secrets.GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          node << 'EOF'
+          const https = require('https');
+          const http = require('http');
+
+          // Skip SSL verification
+          const agent = new https.Agent({ rejectUnauthorized: false });
+
+          const ENDPOINTS = {
+            barajdurum: 'https://openapi.izmir.bel.tr/api/izsu/barajdurum',
+            barajvekuyular: 'https://openapi.izmir.bel.tr/api/izsu/barajvekuyular',
+            gunluksuuretimi: 'https://openapi.izmir.bel.tr/api/izsu/gunluksuuretimi',
+            suuretiminindagilimi: 'https://openapi.izmir.bel.tr/api/izsu/suuretiminindagilimi',
+            arizakaynaklisukesintileri: 'https://openapi.izmir.bel.tr/api/izsu/arizakaynaklisukesintileri',
+            haftaliksuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/haftaliksuanalizleri',
+            cevreilcesuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/cevreilcesuanalizleri',
+            barajsukaliteraporlari: 'https://openapi.izmir.bel.tr/api/izsu/barajsukaliteraporlari'
+          };
+
+          async function fetchEndpoint(name, url) {
+            return new Promise((resolve) => {
+              const startTime = Date.now();
+
+              https.get(url, { agent }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  const elapsed = Date.now() - startTime;
+                  console.log(`✓ ${name}: ${elapsed}ms`);
+                  try {
+                    resolve({ name, data: JSON.parse(data), error: null });
+                  } catch (e) {
+                    resolve({ name, data: null, error: 'Parse error' });
+                  }
+                });
+              }).on('error', (e) => {
+                const elapsed = Date.now() - startTime;
+                console.log(`✗ ${name}: ${elapsed}ms - ${e.message}`);
+                resolve({ name, data: null, error: e.message });
+              });
+            });
+          }
+
+          async function updateGist(content) {
+            const gistId = process.env.GIST_ID;
+            const token = process.env.GIST_TOKEN;
+
+            if (!gistId || !token) {
+              console.log('No GIST_ID or GIST_TOKEN - skipping gist update');
+              console.log('Data preview:', JSON.stringify(content, null, 2).slice(0, 500));
+              return;
+            }
+
+            const payload = JSON.stringify({
+              files: {
+                'izsu-data.json': {
+                  content: JSON.stringify(content, null, 2)
+                }
+              }
+            });
+
+            return new Promise((resolve, reject) => {
+              const req = https.request({
+                hostname: 'api.github.com',
+                path: `/gists/${gistId}`,
+                method: 'PATCH',
+                headers: {
+                  'Authorization': `token ${token}`,
+                  'User-Agent': 'IZSU-Fetcher',
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(payload)
+                }
+              }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  if (res.statusCode === 200) {
+                    console.log('✓ Gist updated successfully');
+                    resolve();
+                  } else {
+                    console.log(`✗ Gist update failed: ${res.statusCode}`);
+                    reject(new Error(data));
+                  }
+                });
+              });
+
+              req.on('error', reject);
+              req.write(payload);
+              req.end();
+            });
+          }
+
+          async function main() {
+            const totalStart = Date.now();
+            console.log('Starting IZSU data fetch...\n');
+
+            // Fetch all endpoints in parallel
+            const results = await Promise.all(
+              Object.entries(ENDPOINTS).map(([name, url]) => fetchEndpoint(name, url))
+            );
+
+            // Build data object
+            const data = {
+              timestamp: new Date().toISOString(),
+              endpoints: {}
+            };
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            results.forEach(({ name, data: endpointData, error }) => {
+              if (error) {
+                data.endpoints[name] = { error };
+                errorCount++;
+              } else {
+                data.endpoints[name] = endpointData;
+                successCount++;
+              }
+            });
+
+            console.log(`\nResults: ${successCount} success, ${errorCount} errors`);
+
+            // Update gist
+            await updateGist(data);
+
+            const totalElapsed = Date.now() - totalStart;
+            console.log(`\nTotal time: ${totalElapsed}ms (${(totalElapsed/1000).toFixed(1)}s)`);
+          }
+
+          main().catch(console.error);
+          EOF
