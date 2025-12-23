@@ -400,13 +400,31 @@ const Production = (function() {
 
         const months = [];
         const now = new Date();
-        for (let i = monthCount - 1; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            months.push({
-                year: d.getFullYear(),
-                month: d.getMonth() + 1,
-                label: `${monthNames[d.getMonth()]} ${d.getFullYear().toString().slice(-2)}`
-            });
+
+        // If monthCount is 0, show all available data
+        if (monthCount === 0) {
+            const years = [...new Set(distribution.map(d => d.Yil))].sort((a, b) => a - b);
+            const minYear = years[0];
+            const maxYear = years[years.length - 1];
+            for (let year = minYear; year <= maxYear; year++) {
+                for (let month = 1; month <= 12; month++) {
+                    if (year === maxYear && month > now.getMonth() + 1) break;
+                    months.push({
+                        year: year,
+                        month: month,
+                        label: `${monthNames[month - 1]} ${year.toString().slice(-2)}`
+                    });
+                }
+            }
+        } else {
+            for (let i = monthCount - 1; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                months.push({
+                    year: d.getFullYear(),
+                    month: d.getMonth() + 1,
+                    label: `${monthNames[d.getMonth()]} ${d.getFullYear().toString().slice(-2)}`
+                });
+            }
         }
 
         const sources = [...new Set(distribution.map(d => d.UretimKaynagi))];
@@ -427,8 +445,8 @@ const Production = (function() {
                 backgroundColor: palette[index] + '20',
                 fill: false,
                 tension: 0.3,
-                pointRadius: monthCount <= 6 ? 4 : 2,
-                pointHoverRadius: 5
+                pointRadius: months.length <= 12 ? 3 : (months.length <= 36 ? 2 : 0),
+                pointHoverRadius: 4
             };
         });
 

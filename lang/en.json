@@ -83,6 +83,7 @@
     "lastYearNoData": "No last year data",
     "dailyDistribution": "Daily Production Distribution",
     "year": "Year",
+    "allTime": "All",
     "monthlyTrend": "Monthly Production Trend",
     "bySource": "Production by Source",
     "last12Months": "Last 12 Months: Actual vs Average Production",
