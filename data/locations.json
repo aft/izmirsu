@@ -1,0 +1,132 @@
+{
+  "barajlar": [
+    {
+      "id": "tahtali",
+      "name": "Tahtalı Barajı",
+      "type": "baraj",
+      "lat": 38.153173,
+      "lng": 27.116608,
+      "capacity": 180000000,
+      "year": 1996,
+      "district": "Menderes"
+    },
+    {
+      "id": "guzelhisar",
+      "name": "Güzelhisar Barajı",
+      "type": "baraj",
+      "lat": 38.792902,
+      "lng": 27.135104,
+      "capacity": 16100000,
+      "year": 1981,
+      "district": "Menemen"
+    },
+    {
+      "id": "balcova",
+      "name": "Balçova Barajı",
+      "type": "baraj",
+      "lat": 38.37278,
+      "lng": 27.03861,
+      "capacity": 8200000,
+      "year": 1983,
+      "district": "Balçova"
+    },
+    {
+      "id": "urkmez",
+      "name": "Ürkmez Barajı",
+      "type": "baraj",
+      "lat": 38.096539,
+      "lng": 26.958015,
+      "capacity": 6400000,
+      "year": 2015,
+      "district": "Seferihisar"
+    },
+    {
+      "id": "gordes",
+      "name": "Gördes Barajı",
+      "type": "baraj",
+      "lat": 38.7633,
+      "lng": 28.0573,
+      "capacity": 450000000,
+      "year": 2020,
+      "district": "Manisa/Gördes"
+    },
+    {
+      "id": "kutlu-aktas",
+      "name": "Kutlu Aktaş Barajı",
+      "type": "baraj",
+      "lat": 38.4275,
+      "lng": 27.0367,
+      "capacity": 4700000,
+      "year": 1984,
+      "district": "Bornova"
+    },
+    {
+      "id": "sarnicli",
+      "name": "Sarnıçlı Barajı",
+      "type": "baraj",
+      "lat": 38.435,
+      "lng": 27.055,
+      "capacity": 1600000,
+      "year": 2012,
+      "district": "Bornova"
+    },
+    {
+      "id": "kavakdere",
+      "name": "Kavakdere Barajı",
+      "type": "baraj",
+      "lat": 38.35,
+      "lng": 27.05,
+      "capacity": 1200000,
+      "year": 1996,
+      "district": "Narlıdere"
+    }
+  ],
+  "kuyular": [
+    {
+      "id": "goksu",
+      "name": "Göksu Kuyuları",
+      "type": "kuyu",
+      "lat": 38.765,
+      "lng": 27.198,
+      "district": "Menemen"
+    },
+    {
+      "id": "halkapinar",
+      "name": "Halkapınar Kuyuları",
+      "type": "kuyu",
+      "lat": 38.4238,
+      "lng": 27.1618,
+      "district": "Konak"
+    },
+    {
+      "id": "sarikiz",
+      "name": "Sarıkız Kuyuları",
+      "type": "kuyu",
+      "lat": 38.79,
+      "lng": 27.15,
+      "district": "Menemen"
+    },
+    {
+      "id": "buca",
+      "name": "Buca Kuyuları",
+      "type": "kuyu",
+      "lat": 38.388,
+      "lng": 27.18,
+      "district": "Buca"
+    },
+    {
+      "id": "gediz",
+      "name": "Gediz Kuyuları",
+      "type": "kuyu",
+      "lat": 38.78,
+      "lng": 27.12,
+      "district": "Menemen"
+    }
+  ],
+  "consumption": {
+    "dailyPerCapita": 215,
+    "population": 4500000,
+    "dailyTotal": 967500000,
+    "unit": "liters"
+  }
+}

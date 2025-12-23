@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data/IZSU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="#barajlar" class="logo-link"><h1 class="logo">Data<span class="highlight">/</span>IZSU</h1></a>
+            <nav class="nav">
+                <a href="#barajlar" class="nav-link active" data-section="barajlar" data-i18n="nav.dams">Barajlar</a>
+                <a href="#uretim" class="nav-link" data-section="uretim" data-i18n="nav.production">Uretim</a>
+                <a href="#kesintiler" class="nav-link" data-section="kesintiler" data-i18n="nav.outages">Kesintiler</a>
+                <a href="#analizler" class="nav-link" data-section="analizler" data-i18n="nav.analysis">Analizler</a>
+                <a href="#kaynaklar" class="nav-link" data-section="kaynaklar" data-i18n="nav.sources">Kaynaklar</a>
+            </nav>
+            <button class="settings-btn" id="settingsBtn" aria-label="Ayarlar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label" data-i18n="status.lastUpdate">Son guncelleme:</span>
+                <span class="status-value" id="lastUpdate">--</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label" data-i18n="status.cacheStatus">Onbellek:</span>
+                <span class="status-value" id="cacheStatus">--</span>
+            </div>
+            <button class="refresh-btn" id="refreshBtn" data-i18n="app.retry">Yenile</button>
+        </div>
+
+        <!-- Barajlar Section -->
+        <section id="barajlar" class="section active">
+            <div class="section-header">
+                <h2 data-i18n="dams.title">Baraj Durumlari</h2>
+                <p class="section-desc" data-i18n="dams.subtitle">Izmir barajlarinin guncel doluluk oranlari ve su seviyeleri</p>
+            </div>
+
+            <!-- Water Countdown -->
+            <div class="countdown-container" id="waterCountdown">
+                <!-- Water countdown will be rendered here -->
+            </div>
+
+            <div class="stats-grid" id="damStats">
+                <!-- Dam cards will be rendered here -->
+            </div>
+
+            <div class="chart-row">
+                <div class="chart-container chart-half">
+                    <h3 data-i18n="dams.totalWaterStatus">Toplam Su Durumu</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="totalWaterChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container chart-half">
+                    <h3 data-i18n="dams.damFillRates">Baraj Doluluk Oranlari</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="damFillRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historical Trend (when data available) -->
+            <div class="chart-container" id="historicalTrendContainer" style="display: none;">
+                <h3 data-i18n="dams.weeklyTrend">Haftalik Su Seviyesi Trendi</h3>
+                <div class="chart-wrapper chart-wide">
+                    <canvas id="historicalTrendChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Uretim Section -->
+        <section id="uretim" class="section">
+            <div class="section-header">
+                <h2 data-i18n="production.title">Su Uretimi</h2>
+                <p class="section-desc" data-i18n="production.subtitle">Gunluk ve aylik su uretim verileri</p>
+            </div>
+
+            <div class="stats-grid" id="productionStats">
+                <!-- Production stats will be rendered here -->
+            </div>
+
+            <!-- Source Ratio (Baraj vs Kuyu) - Current vs Last Year -->
+            <div class="chart-row">
+                <div class="chart-container chart-half">
+                    <h3><span data-i18n="production.damVsWell">Baraj vs Kuyu Orani</span> (<span data-i18n="production.today">Bugun</span>)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="sourceRatioChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container chart-half">
+                    <h3><span data-i18n="production.damVsWell">Baraj vs Kuyu Orani</span> (<span data-i18n="production.lastYear">Gecen Yil</span>)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="sourceRatioLastYearChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Production - Current vs Last Year -->
+            <div class="chart-row">
+                <div class="chart-container chart-half">
+                    <h3><span data-i18n="production.dailyDistribution">Gunluk Uretim Dagilimi</span> (<span data-i18n="production.today">Bugun</span>)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="dailyProductionChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container chart-half">
+                    <h3><span data-i18n="production.dailyDistribution">Gunluk Uretim Dagilimi</span> (<span data-i18n="production.lastYear">Gecen Yil</span>)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="dailyProductionLastYearChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-row">
+                <label class="control-label">
+                    <span data-i18n="production.year">Yil</span>:
+                    <select id="yearSelect" class="control-select">
+                        <!-- Years will be populated dynamically -->
+                    </select>
+                </label>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header-with-controls">
+                    <h3 data-i18n="production.monthlyTrend">Aylik Uretim Trendi</h3>
+                    <div class="period-filter">
+                        <button class="period-btn" data-period="1">1 <span data-i18n="production.month">Ay</span></button>
+                        <button class="period-btn" data-period="3">3 <span data-i18n="production.month">Ay</span></button>
+                        <button class="period-btn" data-period="6">6 <span data-i18n="production.month">Ay</span></button>
+                        <button class="period-btn active" data-period="12">12 <span data-i18n="production.month">Ay</span></button>
+                        <button class="period-btn" data-period="24">24 <span data-i18n="production.month">Ay</span></button>
+                    </div>
+                </div>
+                <div class="chart-wrapper chart-wide">
+                    <canvas id="monthlyProductionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h3 data-i18n="production.bySource">Kaynaklara Gore Uretim</h3>
+                <div class="chart-wrapper">
+                    <canvas id="sourceProductionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Monthly Comparison Chart -->
+            <div class="chart-container">
+                <h3 data-i18n="production.last12Months">Son 12 Ay: Gercek vs Ortalama Uretim</h3>
+                <div class="chart-wrapper chart-wide">
+                    <canvas id="monthlyComparisonChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Monthly Production Table (Last 12 months) -->
+            <div class="chart-container">
+                <h3 data-i18n="production.monthlyTable">Son 12 Ay Uretim Tablosu (Ortalama Karsilastirmali)</h3>
+                <p class="section-desc" data-i18n="production.tableHint">Hover ile ortalama degeri gorun. Kirmizi: %20+ dusuk, Sari: %10-20 dusuk, Yesil: %20+ yuksek</p>
+                <div class="table-wrapper" id="monthlyProductionTable">
+                    <!-- Table will be rendered here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Kesintiler Section -->
+        <section id="kesintiler" class="section">
+            <div class="section-header">
+                <h2 data-i18n="outages.title">Ariza Kaynakli Su Kesintileri</h2>
+                <p class="section-desc" data-i18n="outages.subtitle">Aktif su kesintileri ve ariza bilgileri</p>
+            </div>
+
+            <div class="stats-row" id="outageStats">
+                <!-- Outage stats will be rendered here -->
+            </div>
+
+            <div class="filter-row">
+                <label class="control-label">
+                    <span data-i18n="outages.district">Ilce</span>:
+                    <select id="districtFilter" class="control-select">
+                        <option value="" data-i18n="outages.filterAll">Tumu</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="outage-list" id="outageList">
+                <!-- Outage cards will be rendered here -->
+            </div>
+
+            <div class="chart-container">
+                <h3 data-i18n="outages.byDistrict">Ilcelere Gore Kesinti Dagilimi</h3>
+                <div class="chart-wrapper">
+                    <canvas id="outageDistrictChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analizler Section -->
+        <section id="analizler" class="section">
+            <div class="section-header">
+                <h2 data-i18n="analysis.title">Su Kalitesi Analizleri</h2>
+                <p class="section-desc" data-i18n="analysis.subtitle">Haftalik analiz sonuclari ve baraj su kalitesi raporlari</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="haftalik" data-i18n="analysis.weekly">Haftalik Analizler</button>
+                <button class="tab-btn" data-tab="ilce" data-i18n="analysis.district">Ilce Analizleri</button>
+                <button class="tab-btn" data-tab="baraj" data-i18n="analysis.damQuality">Baraj Kalitesi</button>
+            </div>
+
+            <div class="tab-content active" id="haftalik-content">
+                <div class="filter-row">
+                    <label class="control-label">
+                        <span data-i18n="analysis.parameter">Parametre</span>:
+                        <select id="parameterFilter" class="control-select">
+                            <option value="" data-i18n="outages.filterAll">Tumu</option>
+                        </select>
+                    </label>
+                    <label class="control-label">
+                        <span data-i18n="analysis.view">Gorunum</span>:
+                        <select id="analysisViewMode" class="control-select">
+                            <option value="card" data-i18n="analysis.viewCard">Kart</option>
+                            <option value="table" data-i18n="analysis.viewTable">Tablo</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="analysis-grid" id="weeklyAnalysisList">
+                    <!-- Weekly analysis will be rendered here -->
+                </div>
+                <div class="table-wrapper hidden" id="weeklyAnalysisTable">
+                    <!-- Weekly analysis table will be rendered here -->
+                </div>
+            </div>
+
+            <div class="tab-content" id="ilce-content">
+                <div class="filter-row">
+                    <label class="control-label">
+                        <span data-i18n="outages.district">Ilce</span>:
+                        <select id="analysisDistrictFilter" class="control-select">
+                            <option value="" data-i18n="outages.filterAll">Tumu</option>
+                        </select>
+                    </label>
+                    <label class="control-label">
+                        <span data-i18n="analysis.view">Gorunum</span>:
+                        <select id="districtViewMode" class="control-select">
+                            <option value="card" data-i18n="analysis.viewCard">Kart</option>
+                            <option value="table" data-i18n="analysis.viewTable">Tablo</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="analysis-grid" id="districtAnalysisList">
+                    <!-- District analysis will be rendered here -->
+                </div>
+                <div class="table-wrapper hidden" id="districtAnalysisTable">
+                    <!-- District analysis table will be rendered here -->
+                </div>
+            </div>
+
+            <div class="tab-content" id="baraj-content">
+                <div class="filter-row">
+                    <label class="control-label">
+                        <span data-i18n="dams.dam">Baraj</span>:
+                        <select id="damQualityFilter" class="control-select">
+                            <option value="" data-i18n="outages.filterAll">Tumu</option>
+                        </select>
+                    </label>
+                    <label class="control-label">
+                        <span data-i18n="analysis.view">Gorunum</span>:
+                        <select id="damQualityViewMode" class="control-select">
+                            <option value="card" data-i18n="analysis.viewCard">Kart</option>
+                            <option value="table" data-i18n="analysis.viewTable">Tablo</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="quality-grid" id="damQualityList">
+                    <!-- Dam quality reports will be rendered here -->
+                </div>
+                <div class="table-wrapper hidden" id="damQualityTable">
+                    <!-- Dam quality table will be rendered here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Kaynaklar Section -->
+        <section id="kaynaklar" class="section">
+            <div class="section-header">
+                <h2 data-i18n="sources.title">Baraj ve Kuyular</h2>
+                <p class="section-desc" data-i18n="sources.subtitle">Su kaynaklarinin konum ve bilgileri</p>
+            </div>
+
+            <div class="source-toggles" id="sourceToggles">
+                <!-- Source toggle buttons will be rendered here -->
+            </div>
+
+            <div class="map-controls">
+                <div class="map-control-group">
+                    <span class="map-control-label" data-i18n="sources.layer">Gorunum:</span>
+                    <div class="map-layer-toggles">
+                        <button class="map-layer-btn active" data-layer="markers" data-i18n="sources.viewMarkers">Kaynaklar</button>
+                        <button class="map-layer-btn" data-layer="quality" data-i18n="sources.viewQuality">Su Kalitesi</button>
+                        <button class="map-layer-btn" data-layer="flow" data-i18n="sources.viewFlow">Akis</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-container" id="mapContainer">
+                <div id="map"></div>
+                <div class="map-legend" id="mapLegend" style="display: none;">
+                    <div class="legend-content"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-content">
+            <span data-i18n-html="footer.hostedOn"><a href="https://pages.github.com/" target="_blank" rel="noopener">GitHub Pages</a> uzerinde barindiriliyor</span>
+            <span class="footer-separator">|</span>
+            <span data-i18n-html="footer.dataSource">Veriler <a href="https://acikveri.bizizmir.com/" target="_blank" rel="noopener">Izmir Acik Veri Platformu</a></span>
+            <span class="footer-separator">|</span>
+            <span data-i18n-html="footer.openSource">MIT Lisansi ile acik kaynak - <a href="https://github.com/aft" target="_blank" rel="noopener">Cem Baspinar</a></span>
+        </div>
+    </footer>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="settings.title">Ayarlar</h3>
+                <button class="modal-close" id="closeSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <label class="setting-label" data-i18n="settings.cacheDuration">Onbellek suresi (saat)</label>
+                    <input type="number" id="cacheDuration" class="setting-input" min="1" max="168" value="24">
+                    <p class="setting-hint" data-i18n="settings.cacheDurationHint">API verilerinin ne siklikta guncellenmesi gerektigini belirler (1-168 saat)</p>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label" data-i18n="settings.theme">Tema</label>
+                    <select id="themeSelect" class="setting-input">
+                        <option value="dark" data-i18n="settings.themeDark">Koyu</option>
+                        <option value="light" data-i18n="settings.themeLight">Acik</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label" data-i18n="settings.accentColor">Vurgu Rengi</label>
+                    <select id="accentColor" class="setting-input">
+                        <option value="cyan" data-i18n="settings.colorCyan">Cyan</option>
+                        <option value="green" data-i18n="settings.colorGreen">Yesil</option>
+                        <option value="orange" data-i18n="settings.colorOrange">Turuncu</option>
+                        <option value="pink" data-i18n="settings.colorPink">Pembe</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label class="setting-label" data-i18n="settings.language">Dil</label>
+                    <select id="languageSelect" class="setting-input">
+                        <option value="tr">Turkce</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+                <div class="setting-actions">
+                    <button class="btn btn-secondary" id="clearCache" data-i18n="settings.clearCache">Onbellegi Temizle</button>
+                    <button class="btn btn-primary" id="saveSettings" data-i18n="settings.save">Kaydet</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p class="loading-text" data-i18n="app.loading">Veriler yukleniyor...</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet.heat for heatmap overlay -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- App Scripts (load order matters) -->
+    <script src="src/cache.js"></script>
+    <script src="src/api.js"></script>
+    <script src="src/i18n.js"></script>
+    <script src="src/utils.js"></script>
+    <script src="src/charts.js"></script>
+    <script src="src/ui.js"></script>
+    <script src="src/countdown.js"></script>
+    <script src="src/tables.js"></script>
+    <script src="src/production.js"></script>
+    <script src="src/map.js"></script>
+    <script src="src/app.js"></script>
+</body>
+</html>
