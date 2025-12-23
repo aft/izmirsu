@@ -51,12 +51,21 @@ jobs:
           const RETRY_COUNT = 3;
           const TIMEOUT_MS = 30000;
 
+          // Browser-like headers (required by some endpoints)
+          const BROWSER_HEADERS = {
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'accept-language': 'tr,en-US;q=0.9,en;q=0.8',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+          };
+
           function fetchWithTimeout(url, timeoutMs) {
             return new Promise((resolve, reject) => {
               const chunks = [];
               let totalSize = 0;
 
-              const req = https.get(url, { agent }, (res) => {
+              const req = https.get(url, { agent, headers: BROWSER_HEADERS }, (res) => {
                 res.on('data', chunk => {
                   chunks.push(chunk);
                   totalSize += chunk.length;
