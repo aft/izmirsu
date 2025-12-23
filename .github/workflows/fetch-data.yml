@@ -29,11 +29,12 @@ jobs:
           const agent = new https.Agent({ rejectUnauthorized: false });
 
           // IZSU OpenAPI endpoints (expired SSL - need rejectUnauthorized: false)
+          const currentYear = new Date().getFullYear();
           const ENDPOINTS = {
             barajdurum: 'https://openapi.izmir.bel.tr/api/izsu/barajdurum',
             barajvekuyular: 'https://openapi.izmir.bel.tr/api/izsu/barajvekuyular',
             gunluksuuretimi: 'https://openapi.izmir.bel.tr/api/izsu/gunluksuuretimi',
-            suuretiminindagilimi: 'https://openapi.izmir.bel.tr/api/izsu/suuretiminindagilimi',
+            suuretiminindagilimi: `https://openapi.izmir.bel.tr/api/izsu/suuretiminindagilimi/${currentYear}`,
             arizakaynaklisukesintileri: 'https://openapi.izmir.bel.tr/api/izsu/arizakaynaklisukesintileri',
             haftaliksuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/haftaliksuanalizleri',
             cevreilcesuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/cevreilcesuanalizleri',
