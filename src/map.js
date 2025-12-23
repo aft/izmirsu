@@ -15,6 +15,7 @@ const MapView = (function() {
     let currentMapLayer = 'markers';
     let sourceToggleState = {};
     let mapControlsInitialized = false;
+    let locationsData = null;
 
     // Izmir district center coordinates
     const DISTRICT_COORDS = {
@@ -50,18 +51,23 @@ const MapView = (function() {
         'Urla': { lat: 38.3225, lng: 26.7647 }
     };
 
-    // Supplemental coordinates for sources missing from API
-    const SUPPLEMENTAL_COORDS = {
-        'Tahtali': { Enlem: 38.1069, Boylam: 27.1056 },
-        'Balcova': { Enlem: 38.3897, Boylam: 27.0397 },
-        'Gordes': { Enlem: 38.9500, Boylam: 28.2833 },
-        'Guzelhisar': { Enlem: 38.5833, Boylam: 27.4167 },
-        'Halkapinar': { Enlem: 38.4333, Boylam: 27.1500 },
-        'Sarikiz': { Enlem: 38.6667, Boylam: 27.0833 },
-        'Menemen': { Enlem: 38.6081, Boylam: 27.0694 },
-        'Urkmez': { Enlem: 38.1500, Boylam: 26.8833 },
-        'Kavaklidere': { Enlem: 38.8833, Boylam: 27.0667 }
-    };
+    /**
+     * Load locations data from JSON file
+     * @returns {Promise<Object|null>} Locations data or null
+     */
+    async function loadLocationsData() {
+        if (locationsData) return locationsData;
+
+        try {
+            const response = await fetch('data/locations.json');
+            if (!response.ok) return null;
+            locationsData = await response.json();
+            return locationsData;
+        } catch (error) {
+            console.warn('Could not load locations data:', error);
+            return null;
+        }
+    }
 
     /**
      * Get district coordinates by name
@@ -90,15 +96,21 @@ const MapView = (function() {
      * @returns {Object|null} Coordinates object or null
      */
     function getSourceCoords(source) {
+        // First: use API coordinates if available
         if (source.Enlem && source.Boylam) {
             return { Enlem: source.Enlem, Boylam: source.Boylam };
         }
 
-        const normalizedName = Utils.normalizeTurkish(source.Adi);
-        for (const [key, coords] of Object.entries(SUPPLEMENTAL_COORDS)) {
-            if (normalizedName.toLowerCase().includes(Utils.normalizeTurkish(key).toLowerCase()) ||
-                Utils.normalizeTurkish(key).toLowerCase().includes(normalizedName.toLowerCase())) {
-                return coords;
+        // Fallback: search in locations.json data
+        if (!locationsData) return null;
+
+        const normalizedName = Utils.normalizeTurkish(source.Adi || '').toLowerCase();
+        const allSources = [...(locationsData.barajlar || []), ...(locationsData.kuyular || [])];
+
+        for (const loc of allSources) {
+            const locName = Utils.normalizeTurkish(loc.name || '').toLowerCase();
+            if (normalizedName.includes(locName) || locName.includes(normalizedName)) {
+                return { Enlem: loc.lat, Boylam: loc.lng };
             }
         }
 
@@ -583,7 +595,10 @@ const MapView = (function() {
      * Render the map
      * @param {Array} sources - Source data
      */
-    function render(sources) {
+    async function render(sources) {
+        // Ensure locations data is loaded
+        await loadLocationsData();
+
         const filtered = (sources || []).filter(s => sourceToggleState[s.Adi] !== false);
 
         mapMarkers.forEach(marker => marker.remove());

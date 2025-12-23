@@ -4,8 +4,8 @@
       "id": "tahtali",
       "name": "Tahtalı Barajı",
       "type": "baraj",
-      "lat": 38.153173,
-      "lng": 27.116608,
+      "lat": 38.088611,
+      "lng": 27.041667,
       "capacity": 180000000,
       "year": 1996,
       "district": "Menderes"
@@ -14,8 +14,8 @@
       "id": "guzelhisar",
       "name": "Güzelhisar Barajı",
       "type": "baraj",
-      "lat": 38.792902,
-      "lng": 27.135104,
+      "lat": 38.790833,
+      "lng": 27.105278,
       "capacity": 16100000,
       "year": 1981,
       "district": "Menemen"
@@ -24,8 +24,8 @@
       "id": "balcova",
       "name": "Balçova Barajı",
       "type": "baraj",
-      "lat": 38.37278,
-      "lng": 27.03861,
+      "lat": 38.372778,
+      "lng": 27.038611,
       "capacity": 8200000,
       "year": 1983,
       "district": "Balçova"
@@ -34,8 +34,8 @@
       "id": "urkmez",
       "name": "Ürkmez Barajı",
       "type": "baraj",
-      "lat": 38.096539,
-      "lng": 26.958015,
+      "lat": 38.093611,
+      "lng": 26.955556,
       "capacity": 6400000,
       "year": 2015,
       "district": "Seferihisar"
@@ -44,21 +44,21 @@
       "id": "gordes",
       "name": "Gördes Barajı",
       "type": "baraj",
-      "lat": 38.7633,
-      "lng": 28.0573,
+      "lat": 38.761944,
+      "lng": 28.056944,
       "capacity": 450000000,
       "year": 2020,
       "district": "Manisa/Gördes"
     },
     {
       "id": "kutlu-aktas",
-      "name": "Kutlu Aktaş Barajı",
+      "name": "Alaçatı Kutlu Aktaş Barajı",
       "type": "baraj",
-      "lat": 38.4275,
-      "lng": 27.0367,
+      "lat": 38.282778,
+      "lng": 26.405833,
       "capacity": 4700000,
-      "year": 1984,
-      "district": "Bornova"
+      "year": 1997,
+      "district": "Çeşme"
     },
     {
       "id": "sarnicli",
@@ -74,8 +74,8 @@
       "id": "kavakdere",
       "name": "Kavakdere Barajı",
       "type": "baraj",
-      "lat": 38.35,
-      "lng": 27.05,
+      "lat": 38.1769,
+      "lng": 26.9016,
       "capacity": 1200000,
       "year": 1996,
       "district": "Narlıdere"
@@ -94,8 +94,8 @@
       "id": "halkapinar",
       "name": "Halkapınar Kuyuları",
       "type": "kuyu",
-      "lat": 38.4238,
-      "lng": 27.1618,
+      "lat": 38.427881400824894,
+      "lng": 27.17349205227562,
       "district": "Konak"
     },
     {
