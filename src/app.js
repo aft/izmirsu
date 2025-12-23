@@ -54,16 +54,6 @@ const App = (function() {
         'Koliform Bakteri': { max: 0 }
     };
 
-    // CKAN API for consumption data
-    const IS_LOCAL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-    const CORS_PROXIES = [
-        'https://api.allorigins.win/raw?url=',
-        'https://corsproxy.io/?',
-        'https://api.codetabs.com/v1/proxy?quest='
-    ];
-    const CKAN_API_BASE = 'https://acikveri.bizizmir.com/api/3/action/datastore_search';
-    const CONSUMPTION_RESOURCE_ID = '7a7485e5-2f04-4daf-9cc0-75ef1c24bc23';
-
     /**
      * Initialize application
      */
@@ -120,31 +110,20 @@ const App = (function() {
     }
 
     /**
-     * Load consumption data from CKAN API
+     * Load consumption data from Gist (via API)
      */
     async function loadConsumptionData() {
-        const maxProxies = IS_LOCAL ? CORS_PROXIES.length : 1;
-
-        for (let proxyIndex = 0; proxyIndex < maxProxies; proxyIndex++) {
-            try {
-                const baseUrl = IS_LOCAL
-                    ? CORS_PROXIES[proxyIndex] + encodeURIComponent(`${CKAN_API_BASE}?resource_id=${CONSUMPTION_RESOURCE_ID}&limit=0`)
-                    : `${CKAN_API_BASE}?resource_id=${CONSUMPTION_RESOURCE_ID}&limit=0`;
-
-                const response = await fetch(baseUrl);
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        consumptionData = {
-                            totalRecords: result.result.total,
-                            dailyConsumption: locationsData?.consumption?.dailyTotal || 967500000
-                        };
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.warn(`Proxy ${proxyIndex + 1}/${maxProxies} failed for consumption data:`, error.message);
+        try {
+            const ckanData = await API.getConsumption();
+            if (ckanData && ckanData.total) {
+                consumptionData = {
+                    totalRecords: ckanData.total,
+                    dailyConsumption: locationsData?.consumption?.dailyTotal || 967500000
+                };
+                return;
             }
+        } catch (error) {
+            console.warn('Failed to load consumption data:', error.message);
         }
 
         consumptionData = {

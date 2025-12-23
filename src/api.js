@@ -250,6 +250,17 @@ const API = (function() {
         return !gistData;
     }
 
+    /**
+     * Get consumption data from CKAN (via Gist)
+     */
+    async function getConsumption() {
+        const data = await fetchFromGist();
+        if (data && data.ckan && data.ckan.consumption) {
+            return data.ckan.consumption;
+        }
+        return null;
+    }
+
     return {
         getOutages,
         getDamsAndWells,
@@ -259,6 +270,7 @@ const API = (function() {
         getWeeklyAnalysis,
         getDistrictAnalysis,
         getDamQuality,
+        getConsumption,
         fetchAll,
         getLastUpdateTime,
         needsRefresh,

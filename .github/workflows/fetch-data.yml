@@ -28,6 +28,7 @@ jobs:
           // Skip SSL verification
           const agent = new https.Agent({ rejectUnauthorized: false });
 
+          // IZSU OpenAPI endpoints (expired SSL - need rejectUnauthorized: false)
           const ENDPOINTS = {
             barajdurum: 'https://openapi.izmir.bel.tr/api/izsu/barajdurum',
             barajvekuyular: 'https://openapi.izmir.bel.tr/api/izsu/barajvekuyular',
@@ -37,6 +38,11 @@ jobs:
             haftaliksuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/haftaliksuanalizleri',
             cevreilcesuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/cevreilcesuanalizleri',
             barajsukaliteraporlari: 'https://openapi.izmir.bel.tr/api/izsu/barajsukaliteraporlari'
+          };
+
+          // CKAN endpoints (valid SSL)
+          const CKAN_ENDPOINTS = {
+            consumption: 'https://acikveri.bizizmir.com/api/3/action/datastore_search?resource_id=7a7485e5-2f04-4daf-9cc0-75ef1c24bc23&limit=0'
           };
 
           const RETRY_COUNT = 3;
@@ -112,6 +118,70 @@ jobs:
             return { name, data: null, error: `Failed after ${RETRY_COUNT} attempts` };
           }
 
+          // Fetch CKAN endpoint (valid SSL - no agent needed)
+          async function fetchCkanEndpoint(name, url) {
+            const startTime = Date.now();
+
+            for (let attempt = 1; attempt <= RETRY_COUNT; attempt++) {
+              try {
+                const rawData = await new Promise((resolve, reject) => {
+                  const chunks = [];
+                  let totalSize = 0;
+
+                  const req = https.get(url, (res) => {
+                    res.on('data', chunk => {
+                      chunks.push(chunk);
+                      totalSize += chunk.length;
+                    });
+                    res.on('end', () => {
+                      const buffer = Buffer.concat(chunks, totalSize);
+                      resolve(buffer.toString('utf8'));
+                    });
+                    res.on('error', reject);
+                  });
+
+                  req.on('error', reject);
+                  req.setTimeout(TIMEOUT_MS, () => {
+                    req.destroy();
+                    reject(new Error('Request timeout'));
+                  });
+                });
+
+                const elapsed = Date.now() - startTime;
+
+                if (!rawData || rawData.trim() === '') {
+                  throw new Error('Empty response');
+                }
+
+                let parsed;
+                try {
+                  parsed = JSON.parse(rawData);
+                } catch (parseErr) {
+                  console.log(`  Parse error preview: ${rawData.substring(0, 200)}`);
+                  throw new Error(`JSON parse error: ${parseErr.message}`);
+                }
+
+                // CKAN returns { success: true, result: { total: N, ... } }
+                if (parsed && parsed.success && parsed.result) {
+                  console.log(`[CKAN] ${name}: ${elapsed}ms (total: ${parsed.result.total})`);
+                  return { name, data: { total: parsed.result.total }, error: null };
+                } else {
+                  throw new Error('CKAN API returned unsuccessful response');
+                }
+
+              } catch (error) {
+                const elapsed = Date.now() - startTime;
+                console.log(`[CKAN] ${name} attempt ${attempt}/${RETRY_COUNT}: ${error.message} (${elapsed}ms)`);
+
+                if (attempt < RETRY_COUNT) {
+                  await new Promise(r => setTimeout(r, 1000 * attempt));
+                }
+              }
+            }
+
+            return { name, data: null, error: `Failed after ${RETRY_COUNT} attempts` };
+          }
+
           async function updateGist(content) {
             const gistId = process.env.GIST_ID;
             const token = process.env.GIST_TOKEN;
@@ -165,30 +235,41 @@ jobs:
             const totalStart = Date.now();
             console.log('Starting IZSU data fetch...\n');
 
-            // Fetch endpoints sequentially to avoid overwhelming the server
+            // Fetch IZSU OpenAPI endpoints sequentially
             const results = [];
             for (const [name, url] of Object.entries(ENDPOINTS)) {
               const result = await fetchEndpoint(name, url);
               results.push(result);
-              // Small delay between requests
               await new Promise(r => setTimeout(r, 500));
+            }
+
+            // Fetch CKAN endpoints
+            console.log('\nFetching CKAN data...');
+            for (const [name, url] of Object.entries(CKAN_ENDPOINTS)) {
+              const result = await fetchCkanEndpoint(name, url);
+              results.push(result);
             }
 
             // Build data object
             const data = {
               timestamp: new Date().toISOString(),
-              endpoints: {}
+              endpoints: {},
+              ckan: {}
             };
 
             let successCount = 0;
             let errorCount = 0;
 
             results.forEach(({ name, data: endpointData, error }) => {
+              // Check if it's a CKAN endpoint
+              const isCkan = Object.keys(CKAN_ENDPOINTS).includes(name);
+              const target = isCkan ? data.ckan : data.endpoints;
+
               if (error) {
-                data.endpoints[name] = { error };
+                target[name] = { error };
                 errorCount++;
               } else {
-                data.endpoints[name] = endpointData;
+                target[name] = endpointData;
                 successCount++;
               }
             });
