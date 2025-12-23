@@ -10,6 +10,7 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,7 +24,6 @@ jobs:
         run: |
           node << 'EOF'
           const https = require('https');
-          const http = require('http');
 
           // Skip SSL verification
           const agent = new https.Agent({ rejectUnauthorized: false });
@@ -39,28 +39,77 @@ jobs:
             barajsukaliteraporlari: 'https://openapi.izmir.bel.tr/api/izsu/barajsukaliteraporlari'
           };
 
-          async function fetchEndpoint(name, url) {
-            return new Promise((resolve) => {
-              const startTime = Date.now();
+          const RETRY_COUNT = 3;
+          const TIMEOUT_MS = 30000;
 
-              https.get(url, { agent }, (res) => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => {
-                  const elapsed = Date.now() - startTime;
-                  console.log(`✓ ${name}: ${elapsed}ms`);
-                  try {
-                    resolve({ name, data: JSON.parse(data), error: null });
-                  } catch (e) {
-                    resolve({ name, data: null, error: 'Parse error' });
-                  }
+          function fetchWithTimeout(url, timeoutMs) {
+            return new Promise((resolve, reject) => {
+              const chunks = [];
+              let totalSize = 0;
+
+              const req = https.get(url, { agent }, (res) => {
+                res.on('data', chunk => {
+                  chunks.push(chunk);
+                  totalSize += chunk.length;
                 });
-              }).on('error', (e) => {
-                const elapsed = Date.now() - startTime;
-                console.log(`✗ ${name}: ${elapsed}ms - ${e.message}`);
-                resolve({ name, data: null, error: e.message });
+                res.on('end', () => {
+                  const buffer = Buffer.concat(chunks, totalSize);
+                  resolve(buffer.toString('utf8'));
+                });
+                res.on('error', reject);
+              });
+
+              req.on('error', reject);
+              req.setTimeout(timeoutMs, () => {
+                req.destroy();
+                reject(new Error('Request timeout'));
               });
             });
+          }
+
+          async function fetchEndpoint(name, url) {
+            const startTime = Date.now();
+
+            for (let attempt = 1; attempt <= RETRY_COUNT; attempt++) {
+              try {
+                const rawData = await fetchWithTimeout(url, TIMEOUT_MS);
+                const elapsed = Date.now() - startTime;
+
+                // Check if response is valid
+                if (!rawData || rawData.trim() === '') {
+                  throw new Error('Empty response');
+                }
+
+                // Try to parse JSON
+                let parsed;
+                try {
+                  parsed = JSON.parse(rawData);
+                } catch (parseErr) {
+                  // Log first 200 chars for debugging
+                  console.log(`  Parse error preview: ${rawData.substring(0, 200)}`);
+                  throw new Error(`JSON parse error: ${parseErr.message}`);
+                }
+
+                // Check for API error in response
+                if (parsed && parsed.message === 'An unexpected error occurred') {
+                  throw new Error('API returned error message');
+                }
+
+                console.log(`✓ ${name}: ${elapsed}ms (${Math.round(rawData.length/1024)}KB)`);
+                return { name, data: parsed, error: null };
+
+              } catch (error) {
+                const elapsed = Date.now() - startTime;
+                console.log(`✗ ${name} attempt ${attempt}/${RETRY_COUNT}: ${error.message} (${elapsed}ms)`);
+
+                if (attempt < RETRY_COUNT) {
+                  // Wait before retry with exponential backoff
+                  await new Promise(r => setTimeout(r, 1000 * attempt));
+                }
+              }
+            }
+
+            return { name, data: null, error: `Failed after ${RETRY_COUNT} attempts` };
           }
 
           async function updateGist(content) {
@@ -69,7 +118,7 @@ jobs:
 
             if (!gistId || !token) {
               console.log('No GIST_ID or GIST_TOKEN - skipping gist update');
-              console.log('Data preview:', JSON.stringify(content, null, 2).slice(0, 500));
+              console.log('Data preview:', JSON.stringify(content, null, 2).slice(0, 1000));
               return;
             }
 
@@ -100,8 +149,8 @@ jobs:
                     console.log('✓ Gist updated successfully');
                     resolve();
                   } else {
-                    console.log(`✗ Gist update failed: ${res.statusCode}`);
-                    reject(new Error(data));
+                    console.log(`✗ Gist update failed: ${res.statusCode} - ${data.substring(0, 200)}`);
+                    reject(new Error(`Gist update failed: ${res.statusCode}`));
                   }
                 });
               });
@@ -116,10 +165,14 @@ jobs:
             const totalStart = Date.now();
             console.log('Starting IZSU data fetch...\n');
 
-            // Fetch all endpoints in parallel
-            const results = await Promise.all(
-              Object.entries(ENDPOINTS).map(([name, url]) => fetchEndpoint(name, url))
-            );
+            // Fetch endpoints sequentially to avoid overwhelming the server
+            const results = [];
+            for (const [name, url] of Object.entries(ENDPOINTS)) {
+              const result = await fetchEndpoint(name, url);
+              results.push(result);
+              // Small delay between requests
+              await new Promise(r => setTimeout(r, 500));
+            }
 
             // Build data object
             const data = {
@@ -147,7 +200,16 @@ jobs:
 
             const totalElapsed = Date.now() - totalStart;
             console.log(`\nTotal time: ${totalElapsed}ms (${(totalElapsed/1000).toFixed(1)}s)`);
+
+            // Exit with error if too many failures
+            if (errorCount > successCount) {
+              console.log('\nToo many errors, exiting with failure');
+              process.exit(1);
+            }
           }
 
-          main().catch(console.error);
+          main().catch(err => {
+            console.error('Fatal error:', err);
+            process.exit(1);
+          });
           EOF
