@@ -9,9 +9,7 @@ const API = (function() {
 
     const API_BASE = 'https://openapi.izmir.bel.tr/api/izsu';
 
-    // Use CORS proxy for local development
-    const IS_LOCAL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-
+    // Always use CORS proxy - the API has SSL certificate issues
     // CORS proxies with their URL builders
     // Each proxy has different URL format requirements
     const CORS_PROXIES = [
@@ -32,7 +30,6 @@ const API = (function() {
     let currentProxyIndex = 0;
 
     function rotateProxy() {
-        if (!IS_LOCAL) return false;
         currentProxyIndex = (currentProxyIndex + 1) % CORS_PROXIES.length;
         console.log(`Switching to proxy: ${CORS_PROXIES[currentProxyIndex].name}`);
         return true;
@@ -40,7 +37,6 @@ const API = (function() {
 
     function buildProxiedUrl(endpoint) {
         const fullUrl = `${API_BASE}/${endpoint}`;
-        if (!IS_LOCAL) return fullUrl;
         return CORS_PROXIES[currentProxyIndex].buildUrl(fullUrl);
     }
 
@@ -89,7 +85,7 @@ const API = (function() {
     async function fetchWithRetry(endpoint) {
         let lastError;
         let proxyAttempts = 0;
-        const maxProxyAttempts = IS_LOCAL ? CORS_PROXIES.length : 1;
+        const maxProxyAttempts = CORS_PROXIES.length;
 
         while (proxyAttempts < maxProxyAttempts) {
             const url = buildProxiedUrl(endpoint);
