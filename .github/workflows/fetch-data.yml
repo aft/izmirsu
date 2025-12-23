@@ -3,9 +3,9 @@ name: Fetch IZSU Data
 on:
   # Manual trigger for testing
   workflow_dispatch:
-  # Hourly schedule (uncomment when ready)
-  # schedule:
-  #   - cron: '0 * * * *'
+  # Hourly schedule
+  schedule:
+    - cron: '0 * * * *'
 
 jobs:
   fetch:
