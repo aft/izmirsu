@@ -1,5 +1,111 @@
 {
-  "entries": [],
-  "lastUpdated": null,
+  "entries": [
+    {
+      "date": "2025-12-23",
+      "timestamp": "2025-12-23T17:27:10.717Z",
+      "summary": {
+        "totalCurrentVolume": 115635000,
+        "totalMaxCapacity": 967884000,
+        "totalMinCapacity": 48146000,
+        "usableWater": 67489000,
+        "usableCapacity": 919738000,
+        "averageFillRate": 9
+      },
+      "dams": [
+        {
+          "name": "Tahtalı Barajı",
+          "fillRate": 0.31,
+          "currentVolume": 20500000,
+          "maxCapacity": 306650000,
+          "minCapacity": 19600000
+        },
+        {
+          "name": "Balçova Barajı",
+          "fillRate": 0,
+          "currentVolume": 211000,
+          "maxCapacity": 7759000,
+          "minCapacity": 211000
+        },
+        {
+          "name": "Ürkmez Barajı",
+          "fillRate": 5.95,
+          "currentVolume": 866000,
+          "maxCapacity": 8625000,
+          "minCapacity": 375000
+        },
+        {
+          "name": "Güzelhisar Barajı",
+          "fillRate": 45.87,
+          "currentVolume": 77738000,
+          "maxCapacity": 155350000,
+          "minCapacity": 11960000
+        },
+        {
+          "name": "Gördes Barajı",
+          "fillRate": 0,
+          "currentVolume": 15500000,
+          "maxCapacity": 473000000,
+          "minCapacity": 15500000
+        },
+        {
+          "name": "Alaçatı Kutlu Aktaş Barajı",
+          "fillRate": 2,
+          "currentVolume": 820000,
+          "maxCapacity": 16500000,
+          "minCapacity": 500000
+        }
+      ],
+      "production": {
+        "date": "2025-12-22T00:00:00",
+        "sources": [
+          {
+            "name": "Sarıkız Kuyuları",
+            "amount": 53900
+          },
+          {
+            "name": "Göksu Kuyuları",
+            "amount": 159600
+          },
+          {
+            "name": "Menemen - Çavuşköy Kuyuları",
+            "amount": 65000
+          },
+          {
+            "name": "Halkapınar Kuyuları",
+            "amount": 129876
+          },
+          {
+            "name": "Pınarbaşı Kuyuları",
+            "amount": 1948
+          },
+          {
+            "name": "Buca ve Sarnıç Kuyuları",
+            "amount": 3751
+          },
+          {
+            "name": "Karaçam Göleti",
+            "amount": 0
+          },
+          {
+            "name": "Güzelhisar Barajı",
+            "amount": 51480
+          },
+          {
+            "name": "Balçova Barajı",
+            "amount": 0
+          },
+          {
+            "name": "Gördes Barajı",
+            "amount": 0
+          },
+          {
+            "name": "Tahtalı Barajı",
+            "amount": 129300
+          }
+        ]
+      }
+    }
+  ],
+  "lastUpdated": "2025-12-23T17:27:10.717Z",
   "note": "This file is updated weekly by GitHub Actions. Run the workflow manually to populate initial data."
 }
