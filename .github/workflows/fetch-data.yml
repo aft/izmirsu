@@ -150,7 +150,7 @@ jobs:
                   const chunks = [];
                   let totalSize = 0;
 
-                  const req = https.get(url, (res) => {
+                  const req = https.get(url, { headers: BROWSER_HEADERS }, (res) => {
                     res.on('data', chunk => {
                       chunks.push(chunk);
                       totalSize += chunk.length;
