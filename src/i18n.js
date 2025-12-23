@@ -166,7 +166,7 @@ const I18n = (function() {
         // Load saved language preference
         const savedLang = localStorage.getItem('izsu_language');
         const browserLang = navigator.language.split('-')[0];
-        const defaultLang = savedLang || (availableLanguages.includes(browserLang) ? browserLang : 'tr');
+        const defaultLang = savedLang || 'tr';
 
         // Always load Turkish as fallback
         await loadLanguage('tr');
