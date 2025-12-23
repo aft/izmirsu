@@ -9,10 +9,18 @@ const API = (function() {
 
     const API_BASE = 'https://openapi.izmir.bel.tr/api/izsu';
 
+    // Your own Cloudflare Worker proxy (deploy worker/proxy.js to Cloudflare)
+    // Replace 'izsu-proxy.YOUR_USERNAME.workers.dev' with your actual worker URL
+    const WORKER_PROXY_URL = "https://izmirsu.cembaspinar.workers.dev";
+
     // Always use CORS proxy - the API has SSL certificate issues
     // CORS proxies with their URL builders
     // Each proxy has different URL format requirements
     const CORS_PROXIES = [
+        {
+            name: 'cloudflare-worker',
+            buildUrl: (url) => `${WORKER_PROXY_URL}/?url=${encodeURIComponent(url)}`
+        },
         {
             name: 'corsproxy.io',
             buildUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
@@ -20,10 +28,6 @@ const API = (function() {
         {
             name: 'allorigins',
             buildUrl: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
-        },
-        {
-            name: 'cors-anywhere-alt',
-            buildUrl: (url) => `https://proxy.cors.sh/${url}`
         }
     ];
 
