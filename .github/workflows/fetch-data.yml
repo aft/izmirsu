@@ -23,25 +23,24 @@ jobs:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
           node << 'EOF'
+          const http2 = require('http2');
           const https = require('https');
 
-          // Skip SSL verification
-          const agent = new https.Agent({ rejectUnauthorized: false });
-
-          // IZSU OpenAPI endpoints (expired SSL - need rejectUnauthorized: false)
+          // IZSU OpenAPI endpoints
           const currentYear = new Date().getFullYear();
           const ENDPOINTS = {
-            barajdurum: 'https://openapi.izmir.bel.tr/api/izsu/barajdurum',
-            barajvekuyular: 'https://openapi.izmir.bel.tr/api/izsu/barajvekuyular',
-            gunluksuuretimi: 'https://openapi.izmir.bel.tr/api/izsu/gunluksuuretimi',
-            arizakaynaklisukesintileri: 'https://openapi.izmir.bel.tr/api/izsu/arizakaynaklisukesintileri',
-            haftaliksuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/haftaliksuanalizleri',
-            cevreilcesuanalizleri: 'https://openapi.izmir.bel.tr/api/izsu/cevreilcesuanalizleri',
-            barajsukaliteraporlari: 'https://openapi.izmir.bel.tr/api/izsu/barajsukaliteraporlari'
+            barajdurum: '/api/izsu/barajdurum',
+            barajvekuyular: '/api/izsu/barajvekuyular',
+            gunluksuuretimi: '/api/izsu/gunluksuuretimi',
+            arizakaynaklisukesintileri: '/api/izsu/arizakaynaklisukesintileri',
+            haftaliksuanalizleri: '/api/izsu/haftaliksuanalizleri',
+            cevreilcesuanalizleri: '/api/izsu/cevreilcesuanalizleri',
+            barajsukaliteraporlari: '/api/izsu/barajsukaliteraporlari'
           };
 
           // Production distribution needs year parameter (2009-current)
           const PRODUCTION_START_YEAR = 2009;
+          const IZSU_HOST = 'https://openapi.izmir.bel.tr';
 
           // CKAN endpoints (valid SSL)
           const CKAN_ENDPOINTS = {
@@ -51,56 +50,66 @@ jobs:
           const RETRY_COUNT = 3;
           const TIMEOUT_MS = 30000;
 
-          // Browser-like headers (required by some endpoints)
+          // Browser-like headers
           const BROWSER_HEADERS = {
-            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'accept-language': 'tr,en-US;q=0.9,en;q=0.8',
-            'cache-control': 'no-cache',
-            'dnt': '1',
-            'pragma': 'no-cache',
-            'priority': 'u=0, i',
-            'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'document',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-site': 'none',
-            'sec-fetch-user': '?1',
-            'upgrade-insecure-requests': '1',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
           };
 
-          function fetchWithTimeout(url, timeoutMs) {
+          // HTTP/2 client for IZSU (some endpoints require HTTP/2)
+          let h2Client = null;
+
+          function getH2Client() {
+            if (!h2Client || h2Client.destroyed) {
+              h2Client = http2.connect(IZSU_HOST, { rejectUnauthorized: false });
+              h2Client.on('error', (err) => console.log('H2 client error:', err.message));
+            }
+            return h2Client;
+          }
+
+          function fetchWithHttp2(path, timeoutMs) {
             return new Promise((resolve, reject) => {
+              const client = getH2Client();
               const chunks = [];
               let totalSize = 0;
 
-              const req = https.get(url, { agent, headers: BROWSER_HEADERS }, (res) => {
-                res.on('data', chunk => {
-                  chunks.push(chunk);
-                  totalSize += chunk.length;
-                });
-                res.on('end', () => {
-                  const buffer = Buffer.concat(chunks, totalSize);
-                  resolve(buffer.toString('utf8'));
-                });
-                res.on('error', reject);
+              const req = client.request({
+                ':path': path,
+                ...BROWSER_HEADERS
               });
 
-              req.on('error', reject);
-              req.setTimeout(timeoutMs, () => {
-                req.destroy();
+              const timeout = setTimeout(() => {
+                req.close();
                 reject(new Error('Request timeout'));
+              }, timeoutMs);
+
+              req.on('data', chunk => {
+                chunks.push(chunk);
+                totalSize += chunk.length;
               });
+
+              req.on('end', () => {
+                clearTimeout(timeout);
+                const buffer = Buffer.concat(chunks, totalSize);
+                resolve(buffer.toString('utf8'));
+              });
+
+              req.on('error', (err) => {
+                clearTimeout(timeout);
+                reject(err);
+              });
+
+              req.end();
             });
           }
 
-          async function fetchEndpoint(name, url) {
+          async function fetchEndpoint(name, path) {
             const startTime = Date.now();
 
             for (let attempt = 1; attempt <= RETRY_COUNT; attempt++) {
               try {
-                const rawData = await fetchWithTimeout(url, TIMEOUT_MS);
+                const rawData = await fetchWithHttp2(path, TIMEOUT_MS);
                 const elapsed = Date.now() - startTime;
 
                 // Check if response is valid
@@ -257,20 +266,20 @@ jobs:
             const totalStart = Date.now();
             console.log('Starting IZSU data fetch...\n');
 
-            // Fetch IZSU OpenAPI endpoints sequentially
+            // Fetch IZSU OpenAPI endpoints sequentially via HTTP/2
             const results = [];
-            for (const [name, url] of Object.entries(ENDPOINTS)) {
-              const result = await fetchEndpoint(name, url);
+            for (const [name, path] of Object.entries(ENDPOINTS)) {
+              const result = await fetchEndpoint(name, path);
               results.push(result);
               await new Promise(r => setTimeout(r, 500));
             }
 
-            // Fetch production distribution for all years (2010-current)
+            // Fetch production distribution for all years (2009-current)
             console.log('\nFetching production distribution by year...');
             const productionData = [];
             for (let year = PRODUCTION_START_YEAR; year <= currentYear; year++) {
-              const url = `https://openapi.izmir.bel.tr/api/izsu/suuretiminindagilimi/${year}`;
-              const result = await fetchEndpoint(`production_${year}`, url);
+              const path = `/api/izsu/suuretiminindagilimi/${year}`;
+              const result = await fetchEndpoint(`production_${year}`, path);
               if (!result.error && Array.isArray(result.data)) {
                 productionData.push(...result.data);
               }
@@ -322,6 +331,11 @@ jobs:
 
             const totalElapsed = Date.now() - totalStart;
             console.log(`\nTotal time: ${totalElapsed}ms (${(totalElapsed/1000).toFixed(1)}s)`);
+
+            // Close HTTP/2 client
+            if (h2Client) {
+              h2Client.close();
+            }
 
             // Exit with error if too many failures
             if (errorCount > successCount) {
