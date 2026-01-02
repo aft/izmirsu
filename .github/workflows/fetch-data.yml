@@ -312,16 +312,13 @@ jobs:
               const daysInMonth = new Date(year, month, 0).getDate();
 
               for (const [sourceName, amount] of Object.entries(sources)) {
-                // Extrapolate to full month estimate
-                const extrapolated = daysCount > 0 ? Math.round(amount * daysInMonth / daysCount) : amount;
                 distribution.push({
                   UretimKaynagi: sourceName,
-                  UretimMiktari: extrapolated,
+                  UretimMiktari: Math.round(amount),
                   Yil: year,
                   Ay: month,
                   _days: daysCount,
-                  _daysInMonth: daysInMonth,
-                  _actual: Math.round(amount)
+                  _daysInMonth: daysInMonth
                 });
               }
             }
@@ -655,8 +652,7 @@ jobs:
               const daysCount = (md._days || []).length;
               const daysInMonth = new Date(y, m, 0).getDate();
               for (const [src, amt] of Object.entries(md._sources || {})) {
-                const extrapolated = daysCount > 0 ? Math.round(amt * daysInMonth / daysCount) : amt;
-                dist.push({ UretimKaynagi: src, UretimMiktari: extrapolated, Yil: y, Ay: m, _days: daysCount, _daysInMonth: daysInMonth, _actual: Math.round(amt) });
+                dist.push({ UretimKaynagi: src, UretimMiktari: Math.round(amt), Yil: y, Ay: m, _days: daysCount, _daysInMonth: daysInMonth });
               }
             }
             return dist;
