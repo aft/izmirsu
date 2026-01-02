@@ -1,6 +1,7 @@
 # IZSU Data Visualization
 
-A minimalist web application for visualizing Izmir Water and Sewerage Administration (IZSU) open data.
+A minimalist web application for visualizing Izmir Water and Sewerage Administration (IZSU) open data. Site is at `https://aft.github.io/izmirsu`..
+
 
 ## Features
 
@@ -15,47 +16,6 @@ A minimalist web application for visualizing Izmir Water and Sewerage Administra
 - **Zero Backend**: Fully client-side static site
 - **Smart Caching**: Caches API data with localStorage (default 24 hours)
 - **Configurable TTL**: Cache duration can be changed by user
-- **Theme Support**: Dark and light theme options
-- **Accent Colors**: Cyan, green, orange, pink
-
-## Installation
-
-```bash
-# Clone the repo
-git clone https://github.com/aft/izmirsu.git
-
-# Enter directory
-cd izmirsu
-
-# Run with any static server
-# Example: Python
-python -m http.server 8000
-
-# Example: Node.js (with npx)
-npx serve
-```
-
-## GitHub Pages Deployment
-
-1. Enable Pages from repository settings
-2. Select `main` branch and `/ (root)` as source
-3. Save
-
-Site will be published at `https://aft.github.io/izmirsu`.
-
-## File Structure
-
-```
-izmirsu/
-  index.html          # Main HTML file
-  src/
-    styles.css        # Styles
-    cache.js          # localStorage cache module
-    api.js            # IZSU API service
-    charts.js         # Chart.js chart module
-    app.js            # Main application
-  README.md
-```
 
 ## APIs Used
 
