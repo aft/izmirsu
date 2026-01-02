@@ -1604,18 +1604,6 @@ a:hover {
     margin-top: 2px;
 }
 
-/* Partial data indicator */
-.partial-data {
-    font-style: italic;
-}
-
-.partial-mark {
-    color: var(--warning);
-    font-weight: bold;
-    margin-left: 2px;
-    cursor: help;
-}
-
 /* Total row styling */
 .total-row {
     border-top: 2px solid var(--border-color);
