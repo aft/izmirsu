@@ -550,7 +550,9 @@ const Production = (function() {
                 const value = entry ? parseInt(entry.UretimMiktari) || 0 : 0;
                 const avgKey = `${source}_${m.month}`;
                 const avg = averages[avgKey] || 0;
-                return { value, avg };
+                const isPartial = entry && entry._days && entry._days < entry._daysInMonth;
+                const daysInfo = isPartial ? `${entry._days}/${entry._daysInMonth}` : null;
+                return { value, avg, isPartial, daysInfo };
             });
         });
 
@@ -601,7 +603,12 @@ const Production = (function() {
                                         }
                                     }
 
-                                    return `<td class="text-right ${diffClass}" data-value="${cell.value}" title="Ort: ${Utils.formatNumber(cell.avg)} m3">${Utils.formatNumber(cell.value)}${diffText}</td>`;
+                                    const partialMark = cell.isPartial ? '<span class="partial-mark" title="' + I18n.t('production.partialData') + ' (' + cell.daysInfo + ' ' + I18n.t('production.days') + ')">*</span>' : '';
+                                    const titleText = cell.isPartial
+                                        ? I18n.t('production.estimatedFromDays').replace('{days}', cell.daysInfo)
+                                        : 'Ort: ' + Utils.formatNumber(cell.avg) + ' m3';
+
+                                    return `<td class="text-right ${diffClass}${cell.isPartial ? ' partial-data' : ''}" data-value="${cell.value}" title="${titleText}">${Utils.formatNumber(cell.value)}${partialMark}${diffText}</td>`;
                                 }).join('')}
                                 <td class="text-right" data-value="${total}"><strong>${Utils.formatNumber(total)}</strong></td>
                             </tr>

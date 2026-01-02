@@ -302,19 +302,26 @@ jobs:
 
           function convertAggregatedToDistribution(aggregated) {
             // Convert aggregated data to suuretiminindagilimi format
-            // Output: [{ UretimKaynagi: "...", UretimMiktari: N, Yil: YYYY, Ay: M }, ...]
+            // Output: [{ UretimKaynagi: "...", UretimMiktari: N, Yil: YYYY, Ay: M, _days: N }, ...]
             const distribution = [];
 
             for (const [monthKey, monthData] of Object.entries(aggregated)) {
               const [year, month] = monthKey.split('-').map(Number);
               const sources = monthData._sources || {};
+              const daysCount = (monthData._days || []).length;
+              const daysInMonth = new Date(year, month, 0).getDate();
 
               for (const [sourceName, amount] of Object.entries(sources)) {
+                // Extrapolate to full month estimate
+                const extrapolated = daysCount > 0 ? Math.round(amount * daysInMonth / daysCount) : amount;
                 distribution.push({
                   UretimKaynagi: sourceName,
-                  UretimMiktari: Math.round(amount),
+                  UretimMiktari: extrapolated,
                   Yil: year,
-                  Ay: month
+                  Ay: month,
+                  _days: daysCount,
+                  _daysInMonth: daysInMonth,
+                  _actual: Math.round(amount)
                 });
               }
             }
@@ -645,8 +652,11 @@ jobs:
             const dist = [];
             for (const [mk, md] of Object.entries(agg)) {
               const [y, m] = mk.split('-').map(Number);
+              const daysCount = (md._days || []).length;
+              const daysInMonth = new Date(y, m, 0).getDate();
               for (const [src, amt] of Object.entries(md._sources || {})) {
-                dist.push({ UretimKaynagi: src, UretimMiktari: Math.round(amt), Yil: y, Ay: m });
+                const extrapolated = daysCount > 0 ? Math.round(amt * daysInMonth / daysCount) : amt;
+                dist.push({ UretimKaynagi: src, UretimMiktari: extrapolated, Yil: y, Ay: m, _days: daysCount, _daysInMonth: daysInMonth, _actual: Math.round(amt) });
               }
             }
             return dist;
