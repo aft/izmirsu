@@ -217,6 +217,111 @@ jobs:
             return { name, data: null, error: `Failed after ${RETRY_COUNT} attempts` };
           }
 
+          async function fetchGist() {
+            const gistId = process.env.GIST_ID;
+            const token = process.env.GIST_TOKEN;
+
+            if (!gistId || !token) return null;
+
+            return new Promise((resolve, reject) => {
+              const req = https.request({
+                hostname: 'api.github.com',
+                path: `/gists/${gistId}`,
+                method: 'GET',
+                headers: {
+                  'Authorization': `token ${token}`,
+                  'User-Agent': 'IZSU-Fetcher',
+                  'Accept': 'application/vnd.github.v3+json'
+                }
+              }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  if (res.statusCode === 200) {
+                    try {
+                      const gist = JSON.parse(data);
+                      const content = gist.files['izsu-data.json']?.content;
+                      resolve(content ? JSON.parse(content) : null);
+                    } catch (e) {
+                      resolve(null);
+                    }
+                  } else {
+                    resolve(null);
+                  }
+                });
+              });
+              req.on('error', () => resolve(null));
+              req.end();
+            });
+          }
+
+          function aggregateDailyToMonthly(existingAggregated, dailyProduction) {
+            // existingAggregated: { "2025-02": { "Tahtali Baraji": 123456, ... }, ... }
+            // dailyProduction: { UretimTarihi: "2025-12-28T00:00:00", BarajKuyuUretimleri: [...] }
+            const aggregated = existingAggregated ? JSON.parse(JSON.stringify(existingAggregated)) : {};
+
+            if (!dailyProduction || !dailyProduction.UretimTarihi || !dailyProduction.BarajKuyuUretimleri) {
+              return aggregated;
+            }
+
+            const date = new Date(dailyProduction.UretimTarihi);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            const dayKey = date.toISOString().split('T')[0];
+
+            // Initialize month if not exists
+            if (!aggregated[monthKey]) {
+              aggregated[monthKey] = { _days: [], _sources: {} };
+            }
+
+            // Skip if this day was already aggregated
+            if (aggregated[monthKey]._days && aggregated[monthKey]._days.includes(dayKey)) {
+              console.log(`Day ${dayKey} already aggregated, skipping`);
+              return aggregated;
+            }
+
+            // Add each source's production
+            for (const item of dailyProduction.BarajKuyuUretimleri) {
+              const sourceName = item.BarajKuyuAdi;
+              const amount = item.UretimMiktari || 0;
+
+              if (!aggregated[monthKey]._sources[sourceName]) {
+                aggregated[monthKey]._sources[sourceName] = 0;
+              }
+              aggregated[monthKey]._sources[sourceName] += amount;
+            }
+
+            // Track which days we've aggregated
+            if (!aggregated[monthKey]._days) {
+              aggregated[monthKey]._days = [];
+            }
+            aggregated[monthKey]._days.push(dayKey);
+
+            console.log(`Aggregated ${dayKey}: ${dailyProduction.BarajKuyuUretimleri.length} sources into ${monthKey}`);
+            return aggregated;
+          }
+
+          function convertAggregatedToDistribution(aggregated) {
+            // Convert aggregated data to suuretiminindagilimi format
+            // Output: [{ UretimKaynagi: "...", UretimMiktari: N, Yil: YYYY, Ay: M }, ...]
+            const distribution = [];
+
+            for (const [monthKey, monthData] of Object.entries(aggregated)) {
+              const [year, month] = monthKey.split('-').map(Number);
+              const sources = monthData._sources || {};
+
+              for (const [sourceName, amount] of Object.entries(sources)) {
+                distribution.push({
+                  UretimKaynagi: sourceName,
+                  UretimMiktari: Math.round(amount),
+                  Yil: year,
+                  Ay: month
+                });
+              }
+            }
+
+            return distribution;
+          }
+
           async function updateGist(content) {
             const gistId = process.env.GIST_ID;
             const token = process.env.GIST_TOKEN;
@@ -251,10 +356,10 @@ jobs:
                 res.on('data', chunk => data += chunk);
                 res.on('end', () => {
                   if (res.statusCode === 200) {
-                    console.log('✓ Gist updated successfully');
+                    console.log('Gist updated successfully');
                     resolve();
                   } else {
-                    console.log(`✗ Gist update failed: ${res.statusCode} - ${data.substring(0, 200)}`);
+                    console.log(`Gist update failed: ${res.statusCode} - ${data.substring(0, 200)}`);
                     reject(new Error(`Gist update failed: ${res.statusCode}`));
                   }
                 });
@@ -269,6 +374,12 @@ jobs:
           async function main() {
             const totalStart = Date.now();
             console.log('Starting IZSU data fetch...\n');
+
+            // Fetch existing gist data for aggregation continuity
+            console.log('Fetching existing gist data...');
+            const existingGist = await fetchGist();
+            const existingAggregated = existingGist?.aggregatedMonthly || {};
+            console.log(`Existing aggregated months: ${Object.keys(existingAggregated).length}`);
 
             // Fetch IZSU OpenAPI endpoints sequentially via HTTP/2
             const results = [];
@@ -321,11 +432,41 @@ jobs:
               }
             });
 
+            // Aggregate daily production into monthly totals
+            console.log('\nAggregating daily production...');
+            const dailyProduction = data.endpoints.gunluksuuretimi;
+            const aggregated = aggregateDailyToMonthly(existingAggregated, dailyProduction);
+            data.aggregatedMonthly = aggregated;
+
+            // Convert aggregated data to distribution format and merge with official data
+            const aggregatedDistribution = convertAggregatedToDistribution(aggregated);
+            console.log(`Aggregated distribution: ${aggregatedDistribution.length} records`);
+
+            // Find the latest month in official data
+            let latestOfficialYear = 0, latestOfficialMonth = 0;
+            for (const item of productionData) {
+              if (item.Yil > latestOfficialYear || (item.Yil === latestOfficialYear && item.Ay > latestOfficialMonth)) {
+                latestOfficialYear = item.Yil;
+                latestOfficialMonth = item.Ay;
+              }
+            }
+            console.log(`Latest official data: ${latestOfficialYear}-${String(latestOfficialMonth).padStart(2, '0')}`);
+
+            // Merge: use official data, then append aggregated data for months after official data
+            const mergedProduction = [...productionData];
+            for (const item of aggregatedDistribution) {
+              const isAfterOfficial = item.Yil > latestOfficialYear ||
+                (item.Yil === latestOfficialYear && item.Ay > latestOfficialMonth);
+              if (isAfterOfficial) {
+                mergedProduction.push(item);
+              }
+            }
+
             // Add merged production data
-            data.endpoints.suuretiminindagilimi = productionData;
-            if (productionData.length > 0) {
+            data.endpoints.suuretiminindagilimi = mergedProduction;
+            if (mergedProduction.length > 0) {
               successCount++;
-              console.log(`suuretiminindagilimi: ${productionData.length} records (${PRODUCTION_START_YEAR}-${currentYear})`);
+              console.log(`suuretiminindagilimi: ${mergedProduction.length} records (${productionData.length} official + ${mergedProduction.length - productionData.length} aggregated)`);
             }
 
             console.log(`\nResults: ${successCount} success, ${errorCount} errors`);
@@ -465,6 +606,52 @@ jobs:
             return { name, data: null, error: 'Failed' };
           }
 
+          async function fetchGist() {
+            const gistId = process.env.GIST_ID, token = process.env.GIST_TOKEN;
+            if (!gistId || !token) return null;
+            return new Promise((resolve) => {
+              const req = https.request({
+                hostname: 'api.github.com', path: '/gists/' + gistId, method: 'GET',
+                headers: { 'Authorization': 'token ' + token, 'User-Agent': 'IZSU', 'Accept': 'application/vnd.github.v3+json' }
+              }, (res) => {
+                let d = ''; res.on('data', c => d += c);
+                res.on('end', () => {
+                  try { const g = JSON.parse(d); resolve(g.files['izsu-data.json']?.content ? JSON.parse(g.files['izsu-data.json'].content) : null); }
+                  catch { resolve(null); }
+                });
+              });
+              req.on('error', () => resolve(null)); req.end();
+            });
+          }
+
+          function aggregateDailyToMonthly(existing, daily) {
+            const agg = existing ? JSON.parse(JSON.stringify(existing)) : {};
+            if (!daily?.UretimTarihi || !daily?.BarajKuyuUretimleri) return agg;
+            const date = new Date(daily.UretimTarihi);
+            const monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+            const dayKey = date.toISOString().split('T')[0];
+            if (!agg[monthKey]) agg[monthKey] = { _days: [], _sources: {} };
+            if (agg[monthKey]._days?.includes(dayKey)) return agg;
+            for (const item of daily.BarajKuyuUretimleri) {
+              const src = item.BarajKuyuAdi;
+              agg[monthKey]._sources[src] = (agg[monthKey]._sources[src] || 0) + (item.UretimMiktari || 0);
+            }
+            agg[monthKey]._days.push(dayKey);
+            console.log('Aggregated ' + dayKey + ' into ' + monthKey);
+            return agg;
+          }
+
+          function convertAggregatedToDistribution(agg) {
+            const dist = [];
+            for (const [mk, md] of Object.entries(agg)) {
+              const [y, m] = mk.split('-').map(Number);
+              for (const [src, amt] of Object.entries(md._sources || {})) {
+                dist.push({ UretimKaynagi: src, UretimMiktari: Math.round(amt), Yil: y, Ay: m });
+              }
+            }
+            return dist;
+          }
+
           async function updateGist(content) {
             const gistId = process.env.GIST_ID, token = process.env.GIST_TOKEN;
             if (!gistId || !token) { console.log('No gist credentials'); return; }
@@ -483,6 +670,9 @@ jobs:
 
           async function main() {
             console.log('Starting fallback fetch...');
+            const existingGist = await fetchGist();
+            const existingAgg = existingGist?.aggregatedMonthly || {};
+
             const results = [];
             for (const [name, path] of Object.entries(ENDPOINTS)) {
               results.push(await fetchEndpoint(name, path));
@@ -504,8 +694,26 @@ jobs:
               const t = Object.keys(CKAN_ENDPOINTS).includes(name) ? data.ckan : data.endpoints;
               if (error) { t[name] = { error }; err++; } else { t[name] = d; ok++; }
             });
-            data.endpoints.suuretiminindagilimi = productionData;
-            if (productionData.length > 0) ok++;
+
+            // Aggregate daily to monthly
+            const agg = aggregateDailyToMonthly(existingAgg, data.endpoints.gunluksuuretimi);
+            data.aggregatedMonthly = agg;
+            const aggDist = convertAggregatedToDistribution(agg);
+
+            // Find latest official month
+            let latestY = 0, latestM = 0;
+            for (const i of productionData) {
+              if (i.Yil > latestY || (i.Yil === latestY && i.Ay > latestM)) { latestY = i.Yil; latestM = i.Ay; }
+            }
+
+            // Merge official + aggregated
+            const merged = [...productionData];
+            for (const i of aggDist) {
+              if (i.Yil > latestY || (i.Yil === latestY && i.Ay > latestM)) merged.push(i);
+            }
+            data.endpoints.suuretiminindagilimi = merged;
+            if (merged.length > 0) ok++;
+            console.log('Production: ' + productionData.length + ' official + ' + (merged.length - productionData.length) + ' aggregated');
             console.log('Results: ' + ok + ' ok, ' + err + ' errors');
             await updateGist(data);
             if (h2Client) h2Client.close();
